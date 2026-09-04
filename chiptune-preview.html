@@ -17,6 +17,8 @@
   button{font:inherit}
   #play{min-height:64px;width:100%;max-width:280px;border:1px solid var(--hot);background:var(--hot);color:#08090b;font-weight:900;letter-spacing:.1em;text-transform:uppercase;font-size:16px;border-radius:3px;cursor:pointer}
   #play:active{transform:translateY(1px)}
+  .seekRow{display:grid;grid-template-columns:38px 1fr 38px;gap:8px;align-items:center;font-size:10px;color:var(--muted);margin-top:14px}
+  #skipDrop{display:block;width:100%;min-height:38px;margin-top:8px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase;border-radius:2px;cursor:pointer}
   .toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:18px 0 6px}
   .toggle button{min-height:52px;border:1px solid var(--line);background:#15181e;color:var(--text);font-size:11px;letter-spacing:.06em;text-transform:uppercase;border-radius:2px;cursor:pointer;padding:8px}
   .toggle button[aria-pressed="true"]{background:#e7e4da;color:#08090b;border-color:#e7e4da;font-weight:800}
@@ -36,6 +38,13 @@
   <div class="transport">
     <button id="play">Play</button>
   </div>
+
+  <div class="seekRow">
+    <span id="curTime">0:00</span>
+    <input id="seek" type="range" min="0" max="1000" value="0" step="1">
+    <span id="totTime">4:30</span>
+  </div>
+  <button id="skipDrop" class="skip">Skip to the drop</button>
 
   <div class="toggle" id="toggle">
     <button data-mode="full" aria-pressed="true">Full band<small>kick · bass · chords · hook</small></button>
@@ -59,13 +68,20 @@ const DATA = {"tempo": 99.38401442307692, "kicks": [15.058, 15.662, 16.254, 16.8
 const $ = s => document.querySelector(s);
 let mode = "full";
 let ac, master, playing = false;
-let activeNodes = [];
+let lastPosition = 0, t0Global = 0, fromTimeGlobal = 0, seekDragging = false, rafId = null, endTimer = null;
+
+const TOTAL_DUR = Math.max(
+  DATA.kicks[DATA.kicks.length - 1] || 0,
+  ...DATA.bass.map(n => n[0] + n[1]),
+  ...DATA.vocals.map(n => n[0] + n[1]),
+  ...DATA.other.map(n => n[0] + n[1])
+);
+const DROP_TIME = DATA.kicks[0] || 0;
 
 function midiHz(n){ return 440 * Math.pow(2, (n - 69) / 12); }
 
 function makeGraph(){
   ac = new (window.AudioContext || window.webkitAudioContext)();
-  ac.resume().catch(() => {});
   master = ac.createGain();
   master.gain.value = Number($("#volume").value) / 100;
   master.connect(ac.destination);
@@ -135,22 +151,14 @@ function hookNote(t, midi, dur, vel){
   o.start(t); o.stop(t + dur + 0.12);
 }
 
-function scheduleAll(){
-  const noiseBuf = makeGraph();
-  const t0 = ac.currentTime + 0.15;
-  for (const kt of DATA.kicks) kick(t0 + kt);
-  for (const h of DATA.hits) noiseHit(noiseBuf, t0 + h.t, h.kind === "hat" ? "hat" : "mid");
-  for (const [t, dur, midi, vel] of DATA.bass) bassNote(t0 + t, midi, dur, vel);
-  for (const [t, dur, midi, vel] of DATA.vocals) hookNote(t0 + t, midi, dur, vel);
+function scheduleFrom(fromTime, t0, noiseBuf){
+  for (const kt of DATA.kicks) if (kt >= fromTime) kick(t0 + (kt - fromTime));
+  for (const h of DATA.hits) if (h.t >= fromTime) noiseHit(noiseBuf, t0 + (h.t - fromTime), h.kind === "hat" ? "hat" : "mid");
+  for (const [t, dur, midi, vel] of DATA.bass) if (t >= fromTime) bassNote(t0 + (t - fromTime), midi, dur, vel);
+  for (const [t, dur, midi, vel] of DATA.vocals) if (t >= fromTime) hookNote(t0 + (t - fromTime), midi, dur, vel);
   if (mode === "full") {
-    for (const [t, dur, midi, vel] of DATA.other) chordNote(t0 + t, midi, dur, vel);
+    for (const [t, dur, midi, vel] of DATA.other) if (t >= fromTime) chordNote(t0 + (t - fromTime), midi, dur, vel);
   }
-  const totalDur = Math.max(
-    DATA.kicks[DATA.kicks.length - 1] || 0,
-    ...DATA.bass.map(n => n[0] + n[1]),
-    ...DATA.vocals.map(n => n[0] + n[1])
-  );
-  return totalDur;
 }
 
 function fmt(s){
@@ -158,34 +166,84 @@ function fmt(s){
   return m + ":" + String(sec).padStart(2, "0");
 }
 
-let endTimer = null;
-function play(){
-  stop(true);
-  const dur = scheduleAll();
-  playing = true;
-  $("#play").textContent = "Stop";
-  $("#status").textContent = `playing · ${fmt(dur)} · ${mode === "full" ? "full band" : "chip essentials"}`;
-  endTimer = setTimeout(() => { if (playing) stop(); }, (dur + 1) * 1000);
-}
-function stop(silent){
-  playing = false;
-  if (endTimer) clearTimeout(endTimer);
-  if (ac) { ac.close().catch(() => {}); ac = null; }
-  $("#play").textContent = "Play";
-  if (!silent) $("#status").textContent = "~4:30 · tap play";
+function currentPosition(){
+  if (playing && ac) return Math.min(TOTAL_DUR, fromTimeGlobal + Math.max(0, ac.currentTime - t0Global));
+  return lastPosition;
 }
 
-$("#play").onclick = () => { playing ? stop() : play(); };
+function setSeekUI(pos){
+  $("#seek").value = Math.round((pos / TOTAL_DUR) * 1000);
+  $("#curTime").textContent = fmt(pos);
+}
+
+function updateLoop(){
+  if (!playing) return;
+  if (!seekDragging) setSeekUI(currentPosition());
+  if (playing) rafId = requestAnimationFrame(updateLoop);
+}
+
+async function play(fromTime){
+  stop(true);
+  if (fromTime === undefined) fromTime = lastPosition;
+  if (fromTime >= TOTAL_DUR - 0.05) fromTime = 0;
+  const noiseBuf = makeGraph();
+  // Wait for the context to actually be running before reading its clock —
+  // scheduling against currentTime while still suspended can compute a start
+  // time that's already "in the past" once resume() finally lands, especially
+  // on mobile Safari where resume() latency is higher than desktop. No error
+  // is thrown either way, it just plays nothing.
+  try { await ac.resume(); } catch (e) {}
+  const t0 = ac.currentTime + 0.15;
+  t0Global = t0; fromTimeGlobal = fromTime;
+  scheduleFrom(fromTime, t0, noiseBuf);
+  playing = true;
+  $("#play").textContent = "Stop";
+  $("#status").textContent = mode === "full" ? "playing · full band" : "playing · chip essentials";
+  const remain = TOTAL_DUR - fromTime;
+  endTimer = setTimeout(() => { if (playing) stop(); }, (remain + 1) * 1000);
+  updateLoop();
+}
+function stop(silent){
+  const pos = currentPosition();
+  playing = false;
+  if (endTimer) clearTimeout(endTimer);
+  if (rafId) cancelAnimationFrame(rafId);
+  if (ac) { ac.close().catch(() => {}); ac = null; }
+  lastPosition = pos;
+  $("#play").textContent = "Play";
+  if (!silent) $("#status").textContent = "tap play";
+  if (!seekDragging) setSeekUI(pos);
+}
+
+$("#play").onclick = () => { playing ? stop() : play(lastPosition); };
 document.querySelectorAll("#toggle button").forEach(b => b.onclick = () => {
   document.querySelectorAll("#toggle button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
   mode = b.dataset.mode;
-  if (playing) play();
+  if (playing) play(currentPosition());
 });
 $("#volume").addEventListener("input", e => {
   const v = Number(e.target.value);
   $("#volumeOut").value = v;
   if (master) master.gain.value = v / 100;
 });
+$("#seek").addEventListener("pointerdown", () => { seekDragging = true; });
+$("#seek").addEventListener("input", () => {
+  $("#curTime").textContent = fmt((Number($("#seek").value) / 1000) * TOTAL_DUR);
+});
+$("#seek").addEventListener("change", () => {
+  seekDragging = false;
+  const pos = (Number($("#seek").value) / 1000) * TOTAL_DUR;
+  lastPosition = pos;
+  if (playing) play(pos);
+});
+$("#skipDrop").onclick = () => {
+  lastPosition = DROP_TIME;
+  setSeekUI(DROP_TIME);
+  if (playing) play(DROP_TIME);
+};
+
+setSeekUI(0);
+$("#totTime").textContent = fmt(TOTAL_DUR);
 </script>
 </body>
 </html>
