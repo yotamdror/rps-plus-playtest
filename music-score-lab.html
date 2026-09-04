@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#08090b">
+<title>RPS+ · Paris pressure score lab</title>
+<style>
+  :root{color-scheme:dark;--ink:#08090b;--panel:#111318;--line:#343840;--text:#ece9df;--muted:#8d929d;--hot:#d7dadf}
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:var(--ink);color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  body{display:flex;justify-content:center;padding:max(18px,env(safe-area-inset-top)) 14px max(24px,env(safe-area-inset-bottom))}
+  main{width:min(760px,100%)}
+  header{padding:10px 2px 18px;border-bottom:1px solid var(--line)}
+  .back{min-height:36px;margin:0 0 10px;padding:7px 10px;background:transparent;color:#aeb2ba;font-size:9px;letter-spacing:.12em;text-transform:uppercase}
+  .eyebrow,.label{font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:var(--muted)}
+  h1{margin:8px 0 6px;font:700 clamp(26px,8vw,48px)/.94 Impact,Haettenschweiler,'Arial Narrow Bold',sans-serif;letter-spacing:.02em;text-transform:uppercase}
+  .lede{margin:0;color:#b8bbc2;font-size:12px;line-height:1.55;max-width:68ch}
+  .transport{display:grid;grid-template-columns:1fr auto;gap:10px;margin:16px 0 10px}
+  button,input{font:inherit}
+  button{min-height:46px;border:1px solid var(--line);background:#15181e;color:var(--text);border-radius:2px;padding:10px 12px;cursor:pointer}
+  button:active{transform:translateY(1px)}
+  #play{background:#e7e4da;color:#08090b;border-color:#e7e4da;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+  #mute{width:52px;font-size:18px}
+  .now{position:relative;overflow:hidden;border:1px solid var(--line);background:linear-gradient(145deg,#15171c,#0d0f12);padding:18px;margin-bottom:12px;min-height:145px}
+  .now::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(255,255,255,.018) 3px 4px);pointer-events:none}
+  .scope{height:28px;display:flex;align-items:center;gap:3px;margin-bottom:14px;opacity:.8}
+  .scope i{display:block;flex:1;height:4px;background:#5b606b;transform-origin:center;transition:height .08s,background .2s}
+  .stage-title{font:700 clamp(24px,7vw,42px)/1 Impact,Haettenschweiler,'Arial Narrow Bold',sans-serif;letter-spacing:.035em;text-transform:uppercase}
+  .stage-sub{margin-top:6px;color:#a6abb4;font-size:11px;line-height:1.45}
+  .barline{display:grid;grid-template-columns:repeat(32,1fr);gap:2px;margin-top:18px}
+  .barline i{height:7px;background:#282b31}
+  .barline i.beat{background:#454a53}
+  .barline i.chant{outline:1px solid #777d88;outline-offset:1px}
+  .barline i.on{background:#fff;box-shadow:0 0 10px rgba(255,255,255,.55)}
+  .stage-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:12px 0}
+  .stage-grid button{min-height:64px;text-align:left;padding:9px}
+  .stage-grid button[aria-pressed="true"]{background:#e7e4da;color:#08090b;border-color:#e7e4da}
+  .num{display:block;font-weight:900;font-size:17px}
+  .round{display:block;font-size:8px;line-height:1.2;letter-spacing:.08em;margin-top:4px;text-transform:uppercase}
+  .panel{border:1px solid var(--line);background:var(--panel);padding:13px;margin-top:10px}
+  .ab{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}
+  .ab button[aria-pressed="true"]{background:#d4d7dc;color:#090a0c;border-color:#d4d7dc;font-weight:800}
+  .slider{display:grid;grid-template-columns:105px 1fr 32px;gap:10px;align-items:center;margin-top:13px;font-size:10px;color:#b7bbc3}
+  input[type=range]{width:100%;accent-color:#d7dadf}
+  .layers{display:flex;flex-wrap:wrap;gap:5px;margin-top:13px}
+  .chip{border:1px solid #2b2e34;color:#656a73;padding:5px 7px;font-size:8px;letter-spacing:.08em;text-transform:uppercase}
+  .chip.on{border-color:#727883;color:#dfe2e7;background:#1c2026}
+  .chant{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:9px}
+  .chant button{min-height:54px;font-size:10px;font-weight:900;letter-spacing:.05em;background:#0d0f12}
+  .chant button.fire{background:#eee;color:#050506;box-shadow:0 0 18px rgba(255,255,255,.45)}
+  .note{margin:11px 1px 0;color:#7f848d;font-size:9px;line-height:1.5}
+  @media(max-width:520px){.stage-grid{grid-template-columns:repeat(2,1fr)}.slider{grid-template-columns:92px 1fr 28px}.chant{gap:3px}.chant button{padding:6px 2px;font-size:8px}}
+</style>
+</head>
+<body>
+<main>
+  <button class="back" id="backToGame">&#8592; Back to RPS+</button>
+  <header>
+    <div class="eyebrow">RPS+ music direction · evidence pass 01</div>
+    <h1>Paris pressure spine</h1>
+    <p class="lede">Paris supplies the 100 BPM motor, abrupt first drop, G-rooted pressure and layer timing. Supersonik is an optional color pass, never the composition. The four chant tones own the foreground.</p>
+  </header>
+
+  <div class="transport">
+    <button id="play">Start score</button>
+    <button id="mute" aria-label="Mute">♪</button>
+  </div>
+
+  <section class="now">
+    <div class="scope" id="scope" aria-hidden="true"></div>
+    <div class="label" id="roundLabel">1 · Qualifier</div>
+    <div class="stage-title" id="stageTitle">Distant circuit</div>
+    <div class="stage-sub" id="stageSub">Far-off crackle, F♯ sub-drone, almost no floor. The threat is behind a wall.</div>
+    <div class="barline" id="barline" aria-hidden="true"></div>
+  </section>
+
+  <div class="stage-grid" id="stageGrid"></div>
+
+  <section class="panel">
+    <div class="label">A/B the source hierarchy</div>
+    <div class="ab">
+      <button id="parisOnly" aria-pressed="true">PARIS SKELETON</button>
+      <button id="spaceOn" aria-pressed="false">+ SUPERSONIK COLOR</button>
+    </div>
+    <div class="slider">
+      <span>WON-THROW HEAT</span>
+      <input id="heat" type="range" min="0" max="6" value="0" step="1">
+      <output id="heatOut">0</output>
+    </div>
+    <div class="slider">
+      <span>MASTER</span>
+      <input id="volume" type="range" min="0" max="100" value="72" step="1">
+      <output id="volumeOut">72</output>
+    </div>
+    <div class="layers" id="layers"></div>
+  </section>
+
+  <section class="panel">
+    <div class="label">Foreground event · always above the score</div>
+    <div class="chant" id="chant">
+      <button data-word="0">ROCK · G4</button>
+      <button data-word="1">PAPER · C5</button>
+      <button data-word="2">SCISSORS · E♭5</button>
+      <button data-word="3">SHOOT · G5</button>
+    </div>
+    <div class="slider">
+      <span>AUTO CHANT</span>
+      <input id="autoChant" type="range" min="0" max="1" value="1" step="1">
+      <output id="autoOut">ON</output>
+    </div>
+    <p class="note">The score ducks before each tone and leaves this register empty on chant beats. Manual buttons use the same tones and ducking.</p>
+  </section>
+
+
+</main>
+
+<script>
+/* Analysis-backed constants:
+   - Paris: ~100 BPM fundamental pulse (199 BPM double-time), ~15 s intro/drop,
+     stable G motor, high-band additions near 35/50/90 s, low-end break near 110 s.
+   - Basic Pitch first-130 s harmonic pass: F#1 intro; G1 motor; repeated E2/Eb2
+     tension; later C/Eb upper material. Supersonik supplies timbre only. */
+const BPM=100, STEP=60/BPM/4, LOOP_STEPS=32;
+const chantMidi=[67,72,75,79]; // G4 C5 Eb5 G5 — foreground-only register
+const rounds=['QUALIFIER','R128','R64','R32','R16','QUARTERFINAL','SEMIFINAL','FINAL'];
+const stages=[
+  {title:'DISTANT CIRCUIT',sub:'Far-off crackle, F♯ sub-drone, almost no floor. The threat is behind a wall.',layers:['crackle','drone'],kick:.02,bass:.05,motor:0,hats:0,clap:0,metal:0,space:0,drive:.02,cut:520},
+  {title:'HARD-CORE DROP',sub:'The Paris move: one brutal cut from distance to impact. G motor, four-floor kick, E/E♭ pressure cells.',layers:['crackle','drone','kick','G motor','E/E♭ cell','clap','hat'],kick:.78,bass:.70,motor:.48,hats:.22,clap:.34,metal:0,space:.02,drive:.46,cut:2300},
+  {title:'LOCKED GRID',sub:'A small escalation: the same engine gets a tighter sixteenth lattice and one extra bass pickup.',layers:['drone','kick','G motor','E/E♭ cell','clap','16th hat'],kick:.82,bass:.74,motor:.53,hats:.30,clap:.38,metal:.03,space:.05,drive:.50,cut:3000},
+  {title:'SECOND ENGINE',sub:'Another restrained lift: octave answers and metallic machine ticks, without changing the core phrase.',layers:['drone','kick','octave motor','E/E♭ cell','clap','16th hat','machine tick'],kick:.84,bass:.77,motor:.57,hats:.34,clap:.40,metal:.13,space:.08,drive:.54,cut:3700},
+  {title:'PRESSURE CHAMBER',sub:'First stakes jump. Wider low end, extra pickups, and the first audible retro-space answer between chant tones.',layers:['wide drone','double kick','octave motor','E/E♭ cell','clap','open hat','machine tick','space answer'],kick:.88,bass:.83,motor:.62,hats:.39,clap:.44,metal:.18,space:.22,drive:.61,cut:4600},
+  {title:'REDLINE ORBIT',sub:'Quarterfinal weight: sharper grid, pitched metal and a rising offbeat answer. Paris still owns the floor.',layers:['wide drone','double kick','octave motor','dense cell','clap','open hat','pitched metal','space answer'],kick:.91,bass:.87,motor:.68,hats:.44,clap:.47,metal:.27,space:.34,drive:.67,cut:5600},
+  {title:'SYSTEM BREACH',sub:'Semifinal jump. The machine starts answering itself in stereo; the chant remains the only clean melody.',layers:['wide drone','double kick','octave motor','dense cell','hard clap','open hat','stereo metal','space siren'],kick:.96,bass:.93,motor:.76,hats:.50,clap:.52,metal:.39,space:.48,drive:.76,cut:6900},
+  {title:'KILL SIGNAL',sub:'Final-state overload: maximum motor, end-of-loop barrage, screaming console. No extra notes on the chant beats.',layers:['wide drone','barrage kick','octave motor','dense cell','hard clap','open hat','stereo metal','space siren','final fill'],kick:1,bass:1,motor:.86,hats:.57,clap:.58,metal:.52,space:.62,drive:.88,cut:8200}
+];
+const midiHz=n=>440*Math.pow(2,(n-69)/12);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+let ac,master,musicBus,comp,noiseBuf,crackleBuf,timer,t0=0,nextStep=0,playing=false,muted=false;
+let stage=0,pendingStage=0,heat=0,spaceColor=false,autoChant=true;
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+
+function initAudio(){
+  if(ac)return;
+  ac=new (window.AudioContext||window.webkitAudioContext)();
+  master=ac.createGain(); musicBus=ac.createGain(); comp=ac.createDynamicsCompressor();
+  comp.threshold.value=-15;comp.knee.value=8;comp.ratio.value=5;comp.attack.value=.004;comp.release.value=.16;
+  musicBus.connect(master);master.connect(comp);comp.connect(ac.destination);
+  master.gain.value=.72;
+  noiseBuf=ac.createBuffer(1,ac.sampleRate*.7,ac.sampleRate);
+  const n=noiseBuf.getChannelData(0);for(let i=0;i<n.length;i++)n[i]=Math.random()*2-1;
+  crackleBuf=ac.createBuffer(1,ac.sampleRate*2,ac.sampleRate);
+  const c=crackleBuf.getChannelData(0);let pop=0;
+  for(let i=0;i<c.length;i++){if(Math.random()<.00052)pop=(Math.random()*2-1)*(.4+Math.random()*.6);c[i]=(Math.random()*2-1)*.008+pop;pop*=.83}
+}
+function start(){
+  initAudio();ac.resume().catch(()=>{});playing=true;t0=ac.currentTime+.09;nextStep=0;stage=pendingStage;
+  if(!timer)timer=setInterval(schedule,25);$('#play').textContent='RESTART SCORE';render();
+}
+function schedule(){
+  if(!playing||!ac)return;
+  const now=ac.currentTime,at=now+.35;
+  if(now-(t0+nextStep*STEP)>.12)nextStep+=Math.ceil((now-(t0+nextStep*STEP))/STEP);
+  while(t0+nextStep*STEP<at){
+    const t=t0+nextStep*STEP,s=nextStep%LOOP_STEPS;
+    if(s===0&&stage!==pendingStage)stage=pendingStage;
+    playStep(s,t,nextStep);nextStep++;
+  }
+}
+function out(dest){return dest||musicBus}
+function env(g,t,v,dur,a=.005){g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(.0002,v),t+a);g.gain.exponentialRampToValueAtTime(.0001,t+dur)}
+function osc(type,f,t,dur,v,dest=musicBus){const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.setValueAtTime(f,t);env(g,t,v,dur);o.connect(g);g.connect(out(dest));o.start(t);o.stop(t+dur+.03);return{o,g}}
+function noise(t,dur,v,hz,type='highpass',dest=musicBus){const s=ac.createBufferSource(),f=ac.createBiquadFilter(),g=ac.createGain();s.buffer=noiseBuf;f.type=type;f.frequency.value=hz;env(g,t,v,dur,.002);s.connect(f);f.connect(g);g.connect(out(dest));s.start(t);s.stop(t+dur+.03)}
+function kick(t,v,hard=0){
+  const o=ac.createOscillator(),g=ac.createGain(),sh=ac.createWaveShaper();o.type='sine';o.frequency.setValueAtTime(178,t);o.frequency.exponentialRampToValueAtTime(42,t+.145);
+  const curve=new Float32Array(512);for(let i=0;i<512;i++){const x=i*2/511-1;curve[i]=Math.tanh(x*(1.2+hard*4))}
+  sh.curve=curve;sh.oversample='2x';g.gain.setValueAtTime(v*.62,t);g.gain.exponentialRampToValueAtTime(.001,t+.22);o.connect(sh);sh.connect(g);g.connect(musicBus);o.start(t);o.stop(t+.24);
+  if(hard>.5)noise(t,.025,.025*hard,2200,'bandpass');
+}
+function bass(t,midi,v,dur=.22,oct=false){
+  const f=midiHz(midi),mix=ac.createGain(),fl=ac.createBiquadFilter(),g=ac.createGain();fl.type='lowpass';fl.frequency.value=150+stage*25;fl.Q.value=1.2;mix.gain.value=.58;
+  ['sawtooth','square'].forEach((type,i)=>{const o=ac.createOscillator();o.type=type;o.frequency.value=f*(oct&&i?2:1);o.detune.value=i?5:-3;o.connect(mix);o.start(t);o.stop(t+dur+.03)});
+  env(g,t,v*.13,dur,.008);mix.connect(fl);fl.connect(g);g.connect(musicBus);
+}
+function motor(t,midi,v,dur=.08){
+  const o=ac.createOscillator(),fl=ac.createBiquadFilter(),g=ac.createGain();o.type='sawtooth';o.frequency.value=midiHz(midi);fl.type='bandpass';fl.frequency.value=260+stage*65;fl.Q.value=4.8;env(g,t,v*.075,dur,.003);o.connect(fl);fl.connect(g);g.connect(musicBus);o.start(t);o.stop(t+dur+.02);
+}
+function clap(t,v){noise(t,.105,v*.13,1450,'bandpass');noise(t+.018,.08,v*.07,2400,'bandpass')}
+function hat(t,v,open=false){noise(t,open?.18:.04,v*(open?.10:.075),open?5200:6900,'highpass')}
+function metal(t,midi,v,pan=0){
+  const p=ac.createStereoPanner?ac.createStereoPanner():null,d=p||musicBus;
+  if(p){p.pan.value=pan;p.connect(musicBus)}
+  const a=osc('square',midiHz(midi),t,.055,v*.035,d),b=osc('sine',midiHz(midi)*2.73,t,.07,v*.025,d);a.o.detune.value=-7;b.o.detune.value=11;
+}
+function drone(t,midi,v,wide=false){
+  const fl=ac.createBiquadFilter(),g=ac.createGain();fl.type='lowpass';fl.frequency.value=stage?240+stage*28:105;fl.Q.value=.8;env(g,t,v*(stage?.035:.018),STEP*31.8,.12);fl.connect(g);g.connect(musicBus);
+  [0,wide?-9:0,wide?9:0].forEach((d,i)=>{const o=ac.createOscillator();o.type=i?'triangle':'sawtooth';o.frequency.value=midiHz(midi);o.detune.value=d;o.connect(fl);o.start(t);o.stop(t+STEP*32)});
+}
+function crackle(t,v,bright){
+  const s=ac.createBufferSource(),hp=ac.createBiquadFilter(),lp=ac.createBiquadFilter(),g=ac.createGain();s.buffer=crackleBuf;s.loop=true;hp.type='highpass';hp.frequency.value=650;lp.type='lowpass';lp.frequency.value=bright;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.03);g.gain.setValueAtTime(v,t+STEP*31.5);g.gain.exponentialRampToValueAtTime(.0001,t+STEP*32);s.connect(hp);hp.connect(lp);lp.connect(g);g.connect(musicBus);s.start(t);s.stop(t+STEP*32+.02);
+}
+function spaceBounce(t,fromMidi,toMidi,v,pan=0){
+  const mix=ac.createGain(),fl=ac.createBiquadFilter(),g=ac.createGain(),p=ac.createStereoPanner?ac.createStereoPanner():null,d=p||musicBus;
+  if(p){p.pan.value=pan;p.connect(musicBus)}mix.gain.value=.42;fl.type='lowpass';fl.Q.value=8;fl.frequency.setValueAtTime(3200+stage*260,t);fl.frequency.exponentialRampToValueAtTime(520,t+.19);env(g,t,v*.075,.22,.006);
+  ['square','triangle'].forEach((type,i)=>{const o=ac.createOscillator();o.type=type;o.frequency.setValueAtTime(midiHz(fromMidi),t);o.frequency.exponentialRampToValueAtTime(midiHz(toMidi),t+.055);o.detune.value=i?8:-3;o.connect(mix);o.start(t);o.stop(t+.24)});
+  mix.connect(fl);fl.connect(g);g.connect(d);
+}
+function duck(t,amount=.72,dur=.42){const g=musicBus.gain,at=Math.max(ac.currentTime,t-.045);g.cancelScheduledValues(at);g.setValueAtTime(g.value,at);g.linearRampToValueAtTime(1-amount,t+.015);g.linearRampToValueAtTime(1,t+dur)}
+function chantTone(index,t=ac.currentTime+.015){
+  if(!ac)return;duck(t);const f=midiHz(chantMidi[index]),fl=ac.createBiquadFilter(),g=ac.createGain();fl.type='lowpass';fl.frequency.value=index===3?5200:4100;fl.Q.value=1.5;env(g,t,index===3?.22:.145,index===3?.36:.18,.007);
+  ['sawtooth','triangle'].forEach((type,i)=>{const o=ac.createOscillator();o.type=type;o.frequency.value=f;o.detune.value=i?6:-2;o.connect(fl);o.start(t);o.stop(t+(index===3?.38:.2))});fl.connect(g);g.connect(master);if(index===3)kick(t,.38,.4);
+  const b=$$('[data-word]')[index];b.classList.add('fire');setTimeout(()=>b.classList.remove('fire'),170);
+}
+function playStep(s,t,absolute){
+  const c=stages[stage],beat=s%4===0,bar=s%16,chant=s%8===0;
+  if(s===0){crackle(t,stage===0?.022:.0055,c.cut);drone(t,stage===0?30:31,.75,stage>=4)}
+  if(stage===0){if(s===0||s===16){const k=kick(t,.055,.05);bass(t,30,.30,STEP*7)}if(s===14||s===30)metal(t,79,.06,s===14?-.6:.6)}
+  else{
+    if(beat)kick(t,c.kick,c.drive);
+    if(stage>=4&&(s===6||s===22))kick(t,c.kick*.31,c.drive);
+    if(stage>=7&&(s===14||s===30))kick(t,c.kick*.48,c.drive);
+    // Literal eight-beat G-motor contour from the 14.6–24.2 s Basic Pitch
+    // evidence, quantized to sixteenths. It is intentionally not a generic
+    // every-beat bass line.
+    const parisG=[0,4,8,12,14,22,30];
+    if(parisG.includes(s))bass(t,31,c.bass,.24,stage>=3);
+    if(stage>=2&&[3,19].includes(s))bass(t,30,c.bass*.52,.13,stage>=4);
+    // The source's recurring end-cell: E2 → Eb2 … Eb2 → E2. Higher stages
+    // repeat the same cell earlier; they do not introduce a new melody.
+    const cell={25:40,26:39,29:39,31:40};
+    const cellEcho=stage>=4?{9:40,10:39,13:39,15:40}:{};
+    const cellMidi=cell[s]||cellEcho[s];
+    if(cellMidi)motor(t,cellMidi,c.motor,stage>=5?.095:.075);
+    if(s%8===4)clap(t,c.clap);
+    if(s%4===2)hat(t,c.hats,stage>=4&&s%8===6);
+    if(stage>=2&&s%2===1)hat(t,c.hats*(stage>=6?.43:.28));
+    if(stage>=3&&[5,13,21,29].includes(s))metal(t,stage>=5?(s%16===5?63:65):58,c.metal,s<16?-.55:.55);
+    if(heat>=1&&[7,15,23,31].includes(s))hat(t,.10+.012*heat);
+    if(heat>=2&&[3,11,19,27].includes(s))motor(t,s%16===3?43:39,.12+.025*heat,.06);
+    if(heat>=3&&[6,22].includes(s))bass(t,43,.28+.04*heat,.10,true);
+    if(heat>=4&&[13,29].includes(s))metal(t,70,.20+.04*heat,s<16?-1:1);
+    if(heat>=5&&s>=28)kick(t+(s-28)*.014,c.kick*.18,c.drive);
+    if(heat>=6&&s===31)spaceBounce(t,75,79,.34,0);
+    if(spaceColor&&c.space>0){
+      // Supersonik's repeated-note / whole-step motion is remapped into the
+      // Paris G-minor pitch space and kept on offbeats between chant tones.
+      if([6,14,22,30].includes(s))spaceBounce(t,s%16===6?67:65,s%16===6?65:67,c.space,s<16?-.72:.72);
+      if(stage>=5&&[11,27].includes(s))spaceBounce(t,70,67,c.space*.62,s<16?.5:-.5);
+      if(stage>=7&&s===25)spaceBounce(t,67,75,c.space*.75,0);
+    }
+    if(stage===7&&s>=28)metal(t,[58,63,65,67][s-28],.34,(s-29.5)/2);
+  }
+  if(autoChant&&chant)chantTone((s/8)%4,t+.006);
+  // The scheduler works ahead for glitch-free mobile audio; delay only the visual
+  // cursor so it lands with the sound instead of appearing ~350 ms early.
+  setTimeout(()=>paintPlayhead(s),Math.max(0,(t-ac.currentTime)*1000));
+}
+
+function buildUI(){
+  const grid=$('#stageGrid');stages.forEach((x,i)=>{const b=document.createElement('button');b.innerHTML=`<span class="num">${i+1}</span><span class="round">${rounds[i]}<br>${x.title}</span>`;b.onclick=()=>{pendingStage=i;if(!playing)stage=i;render()};grid.appendChild(b)});
+  const bar=$('#barline');for(let i=0;i<32;i++){const x=document.createElement('i');if(i%4===0)x.classList.add('beat');if(i%8===0)x.classList.add('chant');bar.appendChild(x)}
+  const scope=$('#scope');for(let i=0;i<40;i++)scope.appendChild(document.createElement('i'));
+}
+function render(){
+  const shown=pendingStage,c=stages[shown];$('#roundLabel').textContent=`${shown+1} · ${rounds[shown]}`;$('#stageTitle').textContent=c.title;$('#stageSub').textContent=c.sub;
+  $$('#stageGrid button').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===shown)));
+  $('#parisOnly').setAttribute('aria-pressed',String(!spaceColor));$('#spaceOn').setAttribute('aria-pressed',String(spaceColor));
+  $('#layers').innerHTML=c.layers.map(x=>`<span class="chip on">${x}</span>`).join('')+(spaceColor?'<span class="chip on">SUPERSONIK COLOR ON</span>':'<span class="chip">SUPERSONIK COLOR OFF</span>');
+}
+function paintPlayhead(s){
+  $$('#barline i').forEach((x,i)=>x.classList.toggle('on',i===s));
+  $$('#scope i').forEach((x,i)=>{const c=stages[stage],w=(Math.sin((i+s)*1.7)+Math.sin((i-s)*.47)+2)/4;x.style.height=(3+w*(stage?18:6)+Math.random()*heat)+'px';x.style.background=i%7===s%7?'#dfe2e7':'#5b606b'});
+}
+buildUI();render();
+$('#backToGame').onclick=()=>{location.href=location.hostname.endsWith('github.io')?'./':'../rps-feel-check.html'};
+$('#play').onclick=start;
+$('#mute').onclick=()=>{initAudio();muted=!muted;master.gain.value=muted?0:Number($('#volume').value)/100;$('#mute').textContent=muted?'×':'♪'};
+$('#parisOnly').onclick=()=>{spaceColor=false;render()};
+$('#spaceOn').onclick=()=>{spaceColor=true;render()};
+$('#heat').oninput=e=>{heat=Number(e.target.value);$('#heatOut').value=heat};
+$('#volume').oninput=e=>{const v=Number(e.target.value);$('#volumeOut').value=v;if(master&&!muted)master.gain.value=v/100};
+$('#autoChant').oninput=e=>{autoChant=Boolean(Number(e.target.value));$('#autoOut').value=autoChant?'ON':'OFF'};
+$$('[data-word]').forEach((b,i)=>b.onclick=()=>{initAudio();ac.resume().catch(()=>{});chantTone(i)});
+</script>
+</body>
+</html>
