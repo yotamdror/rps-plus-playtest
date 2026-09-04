@@ -18,7 +18,10 @@
   #play{min-height:64px;width:100%;max-width:280px;border:1px solid var(--hot);background:var(--hot);color:#08090b;font-weight:900;letter-spacing:.1em;text-transform:uppercase;font-size:16px;border-radius:3px;cursor:pointer}
   #play:active{transform:translateY(1px)}
   .seekRow{display:grid;grid-template-columns:38px 1fr 38px;gap:8px;align-items:center;font-size:10px;color:var(--muted);margin-top:14px}
-  #skipDrop{display:block;width:100%;min-height:38px;margin-top:8px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase;border-radius:2px;cursor:pointer}
+  .ffRow{display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:6px;margin-top:8px}
+  .ffRow button{min-height:42px;border:1px solid var(--line);background:transparent;color:var(--text);font-size:10px;letter-spacing:.05em;text-transform:uppercase;border-radius:2px;cursor:pointer}
+  .ffRow button:active{background:#1c2026}
+  #skipDrop{color:var(--muted)}
   .toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:18px 0 6px}
   .toggle button{min-height:52px;border:1px solid var(--line);background:#15181e;color:var(--text);font-size:11px;letter-spacing:.06em;text-transform:uppercase;border-radius:2px;cursor:pointer;padding:8px}
   .toggle button[aria-pressed="true"]{background:#e7e4da;color:#08090b;border-color:#e7e4da;font-weight:800}
@@ -44,7 +47,11 @@
     <input id="seek" type="range" min="0" max="1000" value="0" step="1">
     <span id="totTime">4:30</span>
   </div>
-  <button id="skipDrop" class="skip">Skip to the drop</button>
+  <div class="ffRow">
+    <button id="rewind" class="ff">&#9664;&#9664; 10s</button>
+    <button id="skipDrop" class="skip">Skip to the drop</button>
+    <button id="forward" class="ff">10s &#9654;&#9654;</button>
+  </div>
 
   <div class="toggle" id="toggle">
     <button data-mode="full" aria-pressed="true">Full band<small>kick · bass · chords · hook</small></button>
@@ -241,6 +248,14 @@ $("#skipDrop").onclick = () => {
   setSeekUI(DROP_TIME);
   if (playing) play(DROP_TIME);
 };
+function seekBy(delta){
+  const pos = Math.max(0, Math.min(TOTAL_DUR, currentPosition() + delta));
+  lastPosition = pos;
+  setSeekUI(pos);
+  if (playing) play(pos);
+}
+$("#rewind").onclick = () => seekBy(-10);
+$("#forward").onclick = () => seekBy(10);
 
 setSeekUI(0);
 $("#totTime").textContent = fmt(TOTAL_DUR);
