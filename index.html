@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta name="theme-color" content="#09090c">
+  <!-- Add to Home Screen. iOS reads these from the page it is asked to install,
+       which is this gate - the game's own head does not exist until the unlock
+       below replaces the document. black-translucent hands the page the whole
+       screen with the status bar over it, which is what makes
+       env(safe-area-inset-top) non-zero for the game's HUD to sit clear of. -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RPS+">
+  <meta name="application-name" content="RPS+">
+  <link rel="apple-touch-icon" href="app-icon-180.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash-1290x2796.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash-1179x2556.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash-1284x2778.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash-1170x2532.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash-1125x2436.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash-1242x2688.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash-828x1792.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash-1242x2208.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash-750x1334.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash-640x1136.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash-1320x2868.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash-1206x2622.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="app-icon-512.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <title>RPS+ Playtest</title>
+  <style>
+    *{box-sizing:border-box}html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#09090c;color:#f4f4f7;font-family:system-ui,-apple-system,sans-serif;padding:24px}
+    main{width:min(100%,360px)}h1{margin:0 0 8px;font-size:34px;letter-spacing:.04em}p{color:#a8a8b3;margin:0 0 24px;line-height:1.45}form{display:grid;gap:12px}
+    input,button{width:100%;min-height:52px;border-radius:10px;font:inherit}input{border:1px solid #34343d;background:#15151b;color:#fff;padding:0 15px;font-size:16px}button{border:0;background:#2ee6ff;color:#071014;font-weight:800;cursor:pointer}
+    button:disabled{opacity:.55}#error{min-height:22px;margin-top:12px;color:#ff5b7f;font-size:14px}.small{margin-top:18px;font-size:12px;color:#696975}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>RPS+</h1>
+    <p>Private playtest. Enter the password to load the latest build.</p>
+    <form id="gate">
+      <input id="password" type="password" autocomplete="current-password" placeholder="Playtest password" autofocus required>
+      <button id="unlock" type="submit">Unlock playtest</button>
+    </form>
+    <div id="error" role="alert"></div>
+    <div class="small">The password is remembered on this device until you clear site data.</div>
+  </main>
+  <script>
+    let payloadPromise = null;
+    function loadPayload() {
+      // no-cache revalidates with the server on every unlock (never a stale
+      // build) and gets a 304 when the build hasn't changed. See the comment
+      // above the build script's shell template for why the payload is a
+      // separate file at all.
+      if (!payloadPromise) payloadPromise = fetch("payload-v2.bin", { cache: "no-cache" }).then(r => {
+        if (!r.ok) throw new Error("payload " + r.status);
+        return r.arrayBuffer();
+      });
+      payloadPromise.catch(() => { payloadPromise = null; });   // a failed download is retried on the next unlock
+      return payloadPromise;
+    }
+    const storageKey = "rps-plus-playtest-password";
+    // localStorage, not sessionStorage: launching from the home screen starts a
+    // new session every time, and a playtest build that demands a password on
+    // every cold start does not get playtested. The gate keeps the build off the
+    // open web; it was never protecting the device holding it.
+    const store = window.localStorage;
+    const form = document.querySelector("#gate");
+    const input = document.querySelector("#password");
+    const button = document.querySelector("#unlock");
+    const error = document.querySelector("#error");
+
+    // Layout written by build-protected-playtest.mjs: "RPS2" | iterations
+    // (uint32 BE) | salt (16) | iv (12) | ciphertext + tag of the gzipped page.
+    async function decrypt(password, buffer) {
+      const bytes = new Uint8Array(buffer);
+      if (String.fromCharCode(...bytes.subarray(0, 4)) !== "RPS2") throw new Error("unknown payload format");
+      const iterations = new DataView(buffer).getUint32(4);
+      const material = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(password),
+        "PBKDF2",
+        false,
+        ["deriveKey"]
+      );
+      const key = await crypto.subtle.deriveKey(
+        { name: "PBKDF2", salt: bytes.subarray(8, 24), iterations, hash: "SHA-256" },
+        material,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["decrypt"]
+      );
+      return crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.subarray(24, 36), tagLength: 128 }, key, bytes.subarray(36));
+    }
+
+    function failed(message, forgetPassword) {
+      if (forgetPassword) { store.removeItem(storageKey); input.value = ""; }
+      error.textContent = message;
+      button.disabled = false;
+      button.textContent = "Unlock playtest";
+      input.focus();
+    }
+
+    async function unlock(password) {
+      button.disabled = true;
+      button.textContent = "Unlocking…";
+      error.textContent = "";
+      // A download failure is not a wrong password: keep the remembered one.
+      let buffer;
+      try { buffer = await loadPayload(); }
+      catch { failed("Couldn't download the build. Check the connection and try again.", false); return; }
+      let zipped;
+      try { zipped = await decrypt(password, buffer); }
+      catch { failed("That password did not work.", true); return; }
+      try {
+        const html = await new Response(new Blob([zipped]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+        store.setItem(storageKey, password);
+        document.open();
+        document.write(html);
+        document.close();
+      } catch {
+        failed("This browser couldn't open the build (it needs iOS 16.4 or newer).", false);
+      }
+    }
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      unlock(input.value);
+    });
+
+    const rememberedPassword = store.getItem(storageKey);
+    if (rememberedPassword) unlock(rememberedPassword);
+  </script>
+</body>
+</html>
