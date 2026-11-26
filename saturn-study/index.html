@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta name="theme-color" content="#09090c">
+  <!-- Add to Home Screen. iOS reads these from the page it is asked to install,
+       which is this gate - the game's own head does not exist until the unlock
+       below replaces the document. black-translucent hands the page the whole
+       screen with the status bar over it, which is what makes
+       env(safe-area-inset-top) non-zero for the game's HUD to sit clear of. -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RPS+">
+  <meta name="application-name" content="RPS+">
+  <link rel="apple-touch-icon" href="app-icon-180.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="app-icon-512.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <meta name="robots" content="noindex,nofollow"><title>Saturn · 3D Study</title>
+  <style>
+    *{box-sizing:border-box}html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#09090c;color:#f4f4f7;font-family:system-ui,-apple-system,sans-serif;padding:24px}
+    main{width:min(100%,360px)}h1{margin:0 0 8px;font-size:34px;letter-spacing:.04em}p{color:#a8a8b3;margin:0 0 24px;line-height:1.45}form{display:grid;gap:12px}
+    input,button{width:100%;min-height:52px;border-radius:10px;font:inherit}input{border:1px solid #34343d;background:#15151b;color:#fff;padding:0 15px;font-size:16px}button{border:0;background:#2ee6ff;color:#071014;font-weight:800;cursor:pointer}
+    button:disabled{opacity:.55}#error{min-height:22px;margin-top:12px;color:#ff5b7f;font-size:14px}.small{margin-top:18px;font-size:12px;color:#696975}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Saturn · 3D Study</h1>
+    <p>Opening the private Saturn preview. If this stalls, open the complete shared link again.</p>
+    <form id="gate">
+      <input id="password" type="password" autocomplete="current-password" placeholder="Playtest password" autofocus required>
+      <button id="unlock" type="submit">Unlock playtest</button>
+    </form>
+    <div id="error" role="alert"></div>
+    <div class="small">The password is remembered on this device until you clear site data.</div>
+  </main>
+  <script>
+    let payloadPromise = null;
+    function loadPayload() {
+      // no-store, not just no-cache: this must skip the HTTP cache entirely
+      // rather than merely revalidate it, since the point is to defeat a
+      // stale edge/device cache outright. See the comment above the build
+      // script's shell template for why this exists.
+      if (!payloadPromise) payloadPromise = fetch("payload.json", { cache: "no-store" }).then(r => r.json());
+      return payloadPromise;
+    }
+    const storageKey = "rps-plus-saturn-study-password";
+    // localStorage, not sessionStorage: launching from the home screen starts a
+    // new session every time, and a playtest build that demands a password on
+    // every cold start does not get playtested. The gate keeps the build off the
+    // open web; it was never protecting the device holding it.
+    const store = window.localStorage;
+    const form = document.querySelector("#gate");
+    const input = document.querySelector("#password");
+    const button = document.querySelector("#unlock");
+    const error = document.querySelector("#error");
+
+    function decodeBase64(value) {
+      return Uint8Array.from(atob(value), character => character.charCodeAt(0));
+    }
+
+    async function decrypt(password) {
+      const payload = await loadPayload();
+      const material = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(password),
+        "PBKDF2",
+        false,
+        ["deriveKey"]
+      );
+      const key = await crypto.subtle.deriveKey(
+        { name: "PBKDF2", salt: decodeBase64(payload.salt), iterations: payload.iterations, hash: "SHA-256" },
+        material,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["decrypt"]
+      );
+      const plaintext = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: decodeBase64(payload.iv), tagLength: 128 },
+        key,
+        decodeBase64(payload.data)
+      );
+      return new TextDecoder().decode(plaintext);
+    }
+
+    async function unlock(password) {
+      button.disabled = true;
+      button.textContent = "Unlocking…";
+      error.textContent = "";
+      try {
+        const html = await decrypt(password);
+        store.setItem(storageKey, password);
+        document.open();
+        document.write(html);
+        document.close();
+      } catch {
+        store.removeItem(storageKey);
+        input.value = "";
+        error.textContent = "That password did not work.";
+        button.disabled = false;
+        button.textContent = "Unlock playtest";
+        input.focus();
+      }
+    }
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      unlock(input.value);
+    });
+
+    const sharedKey = new URLSearchParams(location.hash.slice(1)).get("key");
+    if(sharedKey) history.replaceState(null,"",location.pathname+location.search);
+    const rememberedPassword = sharedKey || store.getItem(storageKey);
+    if (rememberedPassword) unlock(rememberedPassword);
+  </script>
+</body>
+</html>
